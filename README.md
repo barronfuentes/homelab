@@ -112,20 +112,20 @@ These reference facts guide the architectural decisions for this specific build.
 
 ---
 
-## Phase-by-Phase Execution (The Plex-First Path)
+## Phase-by-Phase Execution
 
 ### Phase 1: Proxmox & TrueNAS Foundation
-*Goal: Establish the storage layer. This is the only major downtime for the family.*
+*Goal: Establish the storage layer.*
 - [ ] **Infrastructure:** Install Proxmox VE on the primary PC.
 - [ ] **VM - TrueNAS SCALE:** Deploy TrueNAS as a VM.
     - [ ] **HBA Passthrough:** Pass the physical PCIe SATA/SAS controller to the TrueNAS VM.
 - [ ] **ZFS Setup:** Reformat drives into a ZFS Pool.
 - [ ] **Data Migration:** Restore media and personal data from backup into the new ZFS datasets.
 - [ ] **Exports:** Configure NFS/SMB shares for internal network use.
-
-### Phase 2: Media & Secure Gateway (The Family "New World")
-*Goal: Get Plex online and protected by the DMZ.*
 - [ ] **LXC - Plex:** Deploy a Linux Container; mount TrueNAS ZFS datasets via NFS.
+
+### Phase 2: DMZ for Remote Plex Streaming
+*Goal: Get Plex online and protected by the DMZ.*
 - [ ] **Pi 5 - DMZ:** Flash Alpine Linux; deploy NPM, CrowdSec, and Watchtower. 
 - [ ] **UniFi:** Create VLAN 20 (DMZ); assign Pi 5 port; Forward WAN 443 -> Pi 5.
 - [ ] **Plex Config:** Update "Custom server access URL" to `https://plex.bitbarron.duckdns.org:443`.
@@ -145,7 +145,6 @@ These reference facts guide the architectural decisions for this specific build.
 - [ ] **IOMMU:** Enable `intel_iommu=on` (or `amd`) and isolate the GPU for VFIO.
 - [ ] **VM - Gaming:** Create a Windows 11 VM; pass through the GPU and USB controller.
 - [ ] **Streaming:** Install **Sunshine** (Host) + HDMI Dummy Plug.
-- [ ] **Security:** Block `stun.parsec.app` at UDM-SE; force all gaming through WireGuard VPN.
 
 ---
 
