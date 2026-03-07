@@ -4,6 +4,7 @@
 
 The goal of this project is to migrate a Windows-based home server to a hardened **Proxmox Virtual Environment**. The final state will provide high-availability **Plex media streaming** for friends and family via a secure DMZ, and a **high-performance headless gaming VM** capable of streaming AAA titles to a Mac or Apple TV over the local network using Sunshine/Moonlight.
 
+```mermaid
 graph TD
     %% Define Network Boundaries
     subgraph Internet
@@ -69,6 +70,7 @@ graph TD
     style VLAN20_DMZ fill:#ff9999,stroke:#333
     style VLAN30_IoT fill:#ffff99,stroke:#333
     style VLAN1_LAN fill:#99ff99,stroke:#333
+```
 
 ## 1. Project Context & Design Constraints
 These reference facts guide the architectural decisions for this specific build.
