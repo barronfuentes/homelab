@@ -56,6 +56,9 @@ graph TD
     Plex_LXC -.->|Mount Media| TrueNAS_VM
     SUN ---|Moonlight Protocol| Mac
     SUN ---|Moonlight Protocol| ATV
+    
+    %% Apple TV to IoT Rule
+    ATV ---|Traffic Rule: Allow + Return| SmartHome
 ```
 
 ## 1. Project Context & Design Constraints
