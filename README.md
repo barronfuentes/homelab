@@ -2,7 +2,7 @@
 
 ## Project Summary
 
-The goal of this project is to migrate a Windows-based home server to a hardened **Proxmox Virtual Environment**. The final state will provide high-availability **Plex media streaming** for friends and family via a secure DMZ, and a **high-performance headless gaming VM** capable of streaming AAA titles to a Mac or Apple TV over the local network using Sunshine/Moonlight.
+The goal of this project is to migrate a Windows-based home server to a **Proxmox Virtual Environment**. The final state will provide high-bandwitdh **Plex media streaming** for friends and family via a secure DMZ, and a **high-performance headless gaming VM** capable of streaming Steam Deck certified games to a Mac or Apple TV over the local network using Sunshine/Moonlight.
 
 ```mermaid
 graph TD
@@ -101,7 +101,7 @@ These reference facts guide the architectural decisions for this specific build.
 * **Storage Layer (TrueNAS VM):** Owns the physical SATA bus; shares media datasets to Plex via NFS and personal backups via SMB.
 * **Media Layer (Plex LXC):** Lightweight container; uses iGPU for hardware transcoding; accessible via `plex.bitbarron.duckdns.org`.
 * **Gaming Layer (Windows VM):** Owns the RTX 2070S; runs Sunshine for low-latency streaming to Mac/Apple TV clients.
-* **Security Layer (Pi 5 DMZ):** Isolates all incoming web traffic (Port 443) before it hits the internal network.
+* **Security Layer (Pi 5 DMZ):** Isolates incoming web traffic. CrowdSec parses application logs to block threats (brute force, scanners) inside the encrypted HTTPS stream, covering the blind spot of the UniFi IDP.
 
 ### Target Network Topology
 | Segment | CIDR/VLAN | Purpose |
