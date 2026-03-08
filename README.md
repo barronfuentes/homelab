@@ -6,40 +6,39 @@ The goal of this project is to migrate a Windows-based home server to a **Proxmo
 
 ```mermaid
 graph TD
-    %% Define Network Boundaries
     subgraph Internet
         User[External Family/Friends]
         User -->|Port 443| WAN[UniFi UDM-SE]
     end
 
-    subgraph VLAN20_DMZ [VLAN 20: DMZ - Security Layer]
+    subgraph VLAN20_DMZ [VLAN 20: DMZ Gateway]
         direction TB
         NPM[Pi 5: Nginx Proxy Manager]
         CS[CrowdSec IPS]
         NPM <--> CS
     end
 
-    subgraph VLAN1_LAN [VLAN 1: Trusted LAN - Core Compute]
+    subgraph VLAN1_LAN [VLAN 1: Trusted LAN]
         subgraph Proxmox_Host [Physical PC: Proxmox VE]
             direction TB
-            NVMe[(Samsung 970 NVMe: OS/VMs)]
+            NVMe[(Samsung 970 NVMe: Proxmox OS)]
             
             subgraph TrueNAS_VM [VM: TrueNAS SCALE]
-                HBA[SATA Controller Passthrough]
-                Pool[(ZFS Pool: 850/860 EVOs)]
+                HBA[PCIe Passthrough: LSI 9207-8i]
+                Pool[(ZFS Pool: HDDs + Blu-ray)]
                 HBA --- Pool
             end
             
-            subgraph Plex_LXC [LXC: Plex Media Server]
-                GPU_Trans[iGPU UHD 630 Passthrough]
-            end
-            
             subgraph Gaming_VM [VM: Windows 11]
-                RTX[RTX 2070 Super Passthrough]
-                SUN[Sunshine Service]
+                GPU[PCIe Passthrough: RTX 2070S]
+                SSD[Virtual Disk: Gaming SSDs]
+                HDMI[HDMI Dummy Plug]
+                SUN[Sunshine Streaming]
+                GPU --- HDMI
             end
             
-            subgraph HB_LXC [LXC: Homebridge]
+            subgraph Plex_LXC [LXC: Plex Media Server]
+                iGPU[Intel UHD 630 Passthrough]
             end
         end
 
@@ -47,29 +46,16 @@ graph TD
         ATV[Apple TV]
     end
 
-    subgraph VLAN30_IoT [VLAN 30: IoT - Isolated]
-        SmartHome[Smart Plugs / Cameras / Lights]
+    subgraph VLAN30_IoT [VLAN 30: Isolated IoT]
+        SmartHome[HomeBridge Controlled Devices]
     end
 
-    %% Network Routing & Rules
+    %% Routing
     WAN -->|DNAT 443| NPM
     NPM -->|NFS/Proxy| Plex_LXC
     Plex_LXC -.->|Mount Media| TrueNAS_VM
-    
-    %% Internal Streaming
     SUN ---|Moonlight Protocol| Mac
     SUN ---|Moonlight Protocol| ATV
-
-    %% Firewall Rules
-    HB_LXC -->|mDNS/Control| SmartHome
-    SmartHome -.-x|BLOCK: Default Drop| VLAN1_LAN
-    VLAN1_LAN -->|Admin/SMB| TrueNAS_VM
-
-    %% Styling
-    style Proxmox_Host fill:#f9f,stroke:#333,stroke-width:2px
-    style VLAN20_DMZ fill:#ff9999,stroke:#333
-    style VLAN30_IoT fill:#ffff99,stroke:#333
-    style VLAN1_LAN fill:#99ff99,stroke:#333
 ```
 
 ## 1. Project Context & Design Constraints
