@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "skills": {
+    "architecture-diagrams": {
+      "source": "aj-geddes/useful-ai-prompts",
+      "sourceType": "github",
+      "computedHash": "f9b66de144a5ebc40d99425745e2618c546299d324dc7474a421a19981f84c1c"
+    },
+    "doc-coauthoring": {
+      "source": "anthropics/skills",
+      "sourceType": "github",
+      "computedHash": "b964e4c3ffe13f66f76dd7919073e60c7aec622cd8a8363bb36323188100cf8e"
+    }
+  }
+}
