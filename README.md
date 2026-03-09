@@ -4,6 +4,9 @@
 
 The goal of this project is to migrate a Windows-based home server to a **Proxmox Virtual Environment**. The final state will provide high-bandwitdh **Plex media streaming** for friends and family via a secure DMZ, and a **high-performance headless gaming VM** capable of streaming Steam Deck certified games to a Mac or Apple TV over the local network using Sunshine/Moonlight.
 
+### 1. Network & Security Topology
+*High-level view of VLAN isolation and external access.*
+
 ```mermaid
 graph TD
     subgraph Internet
@@ -13,35 +16,22 @@ graph TD
 
     subgraph VLAN20_DMZ [VLAN 20: DMZ Gateway]
         direction TB
-        NPM[Pi 5: Nginx Proxy Manager]
-        CS[CrowdSec IPS]
-        NPM <--> CS
+        subgraph Pi5 [Raspberry Pi 5]
+            direction LR
+            NPM[Nginx Proxy Manager]
+            CS[CrowdSec IPS]
+            WT[Watchtower]
+            NPM <--> CS
+        end
     end
 
     subgraph VLAN1_LAN [VLAN 1: Trusted LAN]
-        subgraph Proxmox_Host [Physical PC: Proxmox VE]
+        subgraph Proxmox [Proxmox VE Host]
             direction TB
-            NVMe[(Samsung 970 NVMe: Proxmox OS)]
-            
-            subgraph TrueNAS_VM [VM: TrueNAS SCALE]
-                HBA[PCIe Passthrough: LSI 9207-8i]
-                Pool[(ZFS Pool: HDDs + Blu-ray)]
-                HBA --- Pool
-            end
-            
-            subgraph Gaming_VM [VM: Windows 11]
-                GPU[PCIe Passthrough: RTX 2070S]
-                SSD[Virtual Disk: Gaming SSDs]
-                HDMI[HDMI Dummy Plug]
-                SUN[Sunshine Streaming]
-                GPU --- HDMI
-            end
-            
-            subgraph Plex_LXC [LXC: Plex Media Server]
-                iGPU[Intel UHD 630 Passthrough]
-            end
+            Plex[LXC: Plex Server]
+            TrueNAS[VM: TrueNAS SCALE]
+            Gaming[VM: Windows Gaming]
         end
-
         Mac[Mac Studio / Laptop]
         ATV[Apple TV]
     end
@@ -52,12 +42,8 @@ graph TD
 
     %% Routing
     WAN -->|DNAT 443| NPM
-    NPM -->|NFS/Proxy| Plex_LXC
-    Plex_LXC -.->|Mount Media| TrueNAS_VM
-    SUN ---|Moonlight Protocol| Mac
-    SUN ---|Moonlight Protocol| ATV
-    
-    %% Apple TV to IoT Rule
+    NPM -->|Reverse Proxy| Plex
+    Mac ---|Sunshine/Moonlight| Gaming
     ATV ---|Traffic Rule: Allow + Return| SmartHome
 ```
 
@@ -76,7 +62,7 @@ These reference facts guide the architectural decisions for this specific build.
 ### Software & Security Decisions
 * **Hypervisor:** Proxmox VE (Debian-based) for native LXC performance.
 * **Storage:** TrueNAS SCALE (VM) with HBA passthrough for data integrity.
-* **Gateway:** Raspberry Pi 5 acting as a DMZ gateway (Nginx Proxy Manager + CrowdSec).
+* **Gateway:** Raspberry Pi 5 acting as a DMZ gateway hosting a **Docker-compose environment** (Nginx Proxy Manager, CrowdSec, Watchtower).
 * **Networking:** UniFi-backed VLAN isolation (LAN, DMZ, IoT).
 
 ### Acknowledged Trade-offs
@@ -85,19 +71,63 @@ These reference facts guide the architectural decisions for this specific build.
 
 ## Implementation Design
 
+### DMZ Gateway Logical Mapping
+*Services running within the Docker-compose environment on the Raspberry Pi 5.*
+
+```mermaid
+graph TB
+    subgraph Pi5_Host [Raspberry Pi 5: Alpine Linux]
+        subgraph Docker_Compose [Docker Compose Environment]
+            NPM[Container: Nginx Proxy Manager]
+            CS[Container: CrowdSec]
+            WT[Container: Watchtower]
+            
+            DB[(SQLite/DB: NPM Config)]
+            Logs[(App Logs: Shared Volume)]
+        end
+    end
+
+    NPM --- Logs
+    CS --- Logs
+    WT -.->|Updates| NPM
+    WT -.->|Updates| CS
+```
+
 ### System Logical Mapping
+*Logical architecture of the Proxmox host and hardware passthrough.*
+
+```mermaid
+graph TB
+    subgraph Proxmox_Host [Physical PC: Proxmox VE]
+        NVMe[(Samsung 970 NVMe: Proxmox OS)]
+        
+        subgraph TrueNAS_VM [VM: TrueNAS SCALE]
+            HBA[PCIe Passthrough: LSI 9207-8i]
+            Pool[(ZFS Pool: HDDs + Blu-ray)]
+            HBA --- Pool
+        end
+        
+        subgraph Gaming_VM [VM: Windows 11]
+            GPU[PCIe Passthrough: RTX 2070S]
+            SSD[Virtual Disk: Gaming SSDs]
+            HDMI[HDMI Dummy Plug]
+            SUN[Sunshine Streaming]
+            GPU --- HDMI
+        end
+        
+        subgraph Plex_LXC [LXC: Plex Media Server]
+            iGPU[Intel UHD 630 Passthrough]
+        end
+    end
+
+    Plex_LXC -.->|Mount Media via NFS| TrueNAS_VM
+```
+
 * **Host (Proxmox):** Manages CPU/RAM allocation; provides the bridge to the UniFi network.
 * **Storage Layer (TrueNAS VM):** Owns the physical SATA bus; shares media datasets to Plex via NFS and personal backups via SMB.
 * **Media Layer (Plex LXC):** Lightweight container; uses iGPU for hardware transcoding; accessible via `plex.bitbarron.duckdns.org`.
 * **Gaming Layer (Windows VM):** Owns the RTX 2070S; runs Sunshine for low-latency streaming to Mac/Apple TV clients.
 * **Security Layer (Pi 5 DMZ):** Isolates incoming web traffic. CrowdSec parses application logs to block threats (brute force, scanners) inside the encrypted HTTPS stream, covering the blind spot of the UniFi IDP.
-
-### Target Network Topology
-| Segment | CIDR/VLAN | Purpose |
-| :--- | :--- | :--- |
-| **LAN** | 10.67.1.0/24 (VLAN 1) | Proxmox Host, Trusted Compute, Gaming Stream |
-| **DMZ** | 10.67.20.0/24 (VLAN 20) | Pi 5 (Nginx Proxy Manager + CrowdSec) |
-| **IoT** | 10.67.30.0/24 (VLAN 30) | Smart Home (Isolated via Homebridge) |
 
 ---
 
