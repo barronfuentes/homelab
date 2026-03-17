@@ -147,24 +147,24 @@ graph TB
 
 ### Phase 1: Smart Home & IoT Hardening
 *Goal: Move smart home services and isolate the "chatterbox" devices first.*
-- [ ] **VLAN Setup:** Configure VLAN 30 (IoT) in UniFi; create isolated SSID.
-- [ ] **LXC - Homebridge:** Deploy a lightweight Debian LXC on the Proxmox host; restore Homebridge backup.
-- [ ] **Firewall:**
-    - [ ] Block `IoT` -> `LAN/Gateway` (Default Drop).
-    - [ ] Allow `Homebridge LXC` -> `IoT` (Established/Related).
-- [ ] **Migrate:** Move devices to the new SSID and verify HomeKit functionality.
+- [x] **VLAN Setup:** Configure VLAN 30 (IoT) in UniFi; create isolated SSID.
+- [x] **Firewall:**
+    - [x] Block `IoT` -> `LAN/Gateway` (Default Drop).
+    - [x] Allow `AppleTV` -> `IoT` (Established/Related).
+ [ ] **Migrate:** Move devices to the new SSID and verify HomeKit functionality.
+    - Virtual Netowrk Override used instead of a new SSID. Not all devices were able to be added to the IoT VLAN.
 
 ### Phase 2: Proxmox & TrueNAS Foundation
 *Goal: Establish the storage and media layers.*
-- [ ] **Hardware:** Install the LSI 9207-8i HBA; connect HDDs and Blu-ray drive.
-- [ ] **Infrastructure:** Install Proxmox VE on the primary PC (NVMe drive).
-- [ ] **VM - TrueNAS SCALE:** Deploy TrueNAS as a VM.
-    - [ ] **HBA Passthrough:** Pass the physical PCIe LSI 9207-8i controller to the TrueNAS VM.
-- [ ] **ZFS Setup:** Reformat drives into a ZFS Pool.
+- [x] **Hardware:** Install the LSI 9207-8i HBA; connect HDDs and Blu-ray drive.
+- [x] **Infrastructure:** Install Proxmox VE on the primary PC (NVMe drive).
+- [x] **VM - TrueNAS SCALE:** Deploy TrueNAS as a VM.
+    - [x] **HBA Passthrough:** Pass the physical PCIe LSI 9207-8i controller to the TrueNAS VM.
+- [x] **ZFS Setup:** Reformat drives into a ZFS Pool.
 - [ ] **Ingestion:** Deploy the **MakeMKV App** within TrueNAS SCALE; verify direct access to the Blu-ray drive for ripping.
-- [ ] **Data Migration:** Restore media and personal data from backup into the new ZFS datasets.
-- [ ] **Exports:** Configure NFS/SMB shares for internal network use.
-- [ ] **LXC - Plex:** Deploy a Linux Container; mount TrueNAS ZFS datasets via NFS; pass through Intel UHD 630 iGPU.
+- [x] **Data Migration:** Restore media and personal data from backup into the new ZFS datasets.
+- [x] **Exports:** Configure NFS/SMB shares for internal network use.
+- [x] **LXC - Plex:** Deploy a Linux Container; mount TrueNAS ZFS datasets via NFS; pass through Intel UHD 630 iGPU.
 
 ### Phase 3: DMZ & Remote Access
 *Goal: Get Plex online and protected by the DMZ.*
