@@ -57,8 +57,8 @@ These reference facts guide the architectural decisions for this specific build.
 * **Memory:** 32GB DDR4 — Prioritized as 16GB (Gaming), 8GB (TrueNAS), 8GB (Host/LXC).
 * **Storage Architecture:**
     * **Boot/VM OS:** Samsung 970 EVO Plus (NVMe) — Proxmox host drive.
-    * **HBA Expansion:** LSI 9207-8i (IT Mode) — Dedicated PCIe 3.0 controller passed to TrueNAS for ZFS management of HDDs and Blu-ray drives.
-    * **Onboard SATA:** Integrated controller used for motherboard-connected SSDs (allocated to the Windows Gaming VM).
+    * **HBA Expansion:** LSI 9207-8i (IT Mode) — Dedicated PCIe 3.0 controller passed to TrueNAS for ZFS management of HDDs.
+    * **Onboard SATA:** Integrated controller; Blu-ray drive port passed through to MakeMKV LXC; remaining SSDs allocated to the Windows Gaming VM.
 
 ### Software & Security Decisions
 * **Hypervisor:** Proxmox VE (Debian-based) for native LXC performance.
@@ -104,20 +104,24 @@ graph TB
         
         subgraph TrueNAS_VM [VM: TrueNAS SCALE]
             HBA[PCIe Passthrough: LSI 9207-8i]
-            Pool[(ZFS Pool: HDDs + Blu-ray)]
-            MKV[App: MakeMKV Container]
+            Pool[(ZFS Pool: HDDs)]
             HBA --- Pool
-            MKV -.->|Direct Device Access| Pool
+        end
+        
+        subgraph MakeMKV_LXC [LXC: MakeMKV]
+            SATA[SATA Passthrough: Blu-ray Drive]
+            Storage[(NFS Mount: TrueNAS Media)]
+            SATA --- Storage
         end
         
         subgraph Gaming_VM [VM: Windows 11]
             GPU[PCIe Passthrough: RTX 2070S]
-            SATA[PCIe Passthrough: Onboard SATA Controller]
+            SataCtrl[SATA Passthrough: Gaming SSDs]
             SSD[(Gaming SSDs)]
             HDMI[HDMI Dummy Plug]
             SUN[Sunshine Streaming]
             GPU --- HDMI
-            SATA --- SSD
+            SataCtrl --- SSD
         end
         
         subgraph Plex_LXC [LXC: Plex Media Server]
@@ -125,22 +129,24 @@ graph TB
         end
     end
 
+    MakeMKV_LXC -.->|Save Ripped Content| TrueNAS_VM
     Plex_LXC -.->|Mount Media via NFS| TrueNAS_VM
 ```
 
 *   **Host (Proxmox):** Manages CPU/RAM allocation; provides the bridge to the UniFi network.
-*   **Storage Layer (TrueNAS VM):** Owns the LSI 9207-8i HBA; hosts the **MakeMKV App** for direct Blu-ray ripping to the ZFS pool; shares media datasets to Plex via NFS.
+*   **Storage Layer (TrueNAS VM):** Owns the LSI 9207-8i HBA; manages the ZFS pool of HDDs; shares media datasets to other services via NFS.
+*   **Ingestion Layer (MakeMKV LXC):** Dedicated Linux container with direct SATA passthrough to the Blu-ray drive; mounts the TrueNAS media dataset via NFS; rips and saves content directly to the shared storage.
 *   **Media Layer (Plex LXC):** Lightweight container; uses iGPU for hardware transcoding; accessible via `plex.bitbarron.duckdns.org`.
-*   **Gaming Layer (Windows VM):** Owns the RTX 2070S and the motherboard's integrated SATA controller for bare-metal SSD performance; runs Sunshine for low-latency streaming.
+*   **Gaming Layer (Windows VM):** Owns the RTX 2070S and motherboard SATA ports for bare-metal SSD performance; runs Sunshine for low-latency streaming.
 *   **Security Layer (Pi 5 DMZ):** Isolates incoming web traffic. CrowdSec parses application logs to block threats inside the encrypted HTTPS stream.
 
 ### Media Ingestion Workflow (MakeMKV)
 *The process for adding physical media to the digital library.*
 
-1.  **Interaction:** Access the **MakeMKV Web UI** via the TrueNAS SCALE IP (typically port 8080 or 5800, depending on the App configuration).
-2.  **Ripping:** Insert a Blu-ray/DVD into the drive; MakeMKV (with direct device access via the HBA) decrypts and rips the title directly to a "Transcode/Ingest" dataset on the ZFS pool.
-3.  **Post-Processing:** (Optional/Manual) Use a tool like Handbrake if compression is needed, or move the raw MKV directly to the `Media/Movies` or `Media/TV` datasets.
-4.  **Library Update:** Plex Media Server (mounting the ZFS datasets via NFS) detects the new file and fetches metadata.
+1.  **Interaction:** Access the **MakeMKV Web UI** via the MakeMKV LXC IP on port 5800 (e.g., `http://[LXC-IP]:5800`).
+2.  **Ripping:** Insert a Blu-ray/DVD into the drive; MakeMKV (running in the LXC with direct SATA device access) decrypts and rips the title to the mounted TrueNAS media dataset.
+3.  **Post-Processing:** (Optional/Manual) Use a tool like Handbrake if compression is needed, or organize the ripped MKV into the `Media/Movies` or `Media/TV` directories.
+4.  **Library Update:** Plex Media Server (mounting the same TrueNAS dataset via NFS) detects the new file and fetches metadata.
 
 ## 4. Implementation Roadmap
 *A phased, step-by-step rebuild sequence.*
@@ -161,7 +167,7 @@ graph TB
 - [x] **VM - TrueNAS SCALE:** Deploy TrueNAS as a VM.
     - [x] **HBA Passthrough:** Pass the physical PCIe LSI 9207-8i controller to the TrueNAS VM.
 - [x] **ZFS Setup:** Reformat drives into a ZFS Pool.
-- [ ] **Ingestion:** Deploy the **MakeMKV App** within TrueNAS SCALE; verify direct access to the Blu-ray drive for ripping.
+- [x] **LXC - MakeMKV:** Deploy a dedicated Linux Container; mount TrueNAS media dataset via NFS; pass through motherboard SATA device for Blu-ray drive; verify ripping and direct save to TrueNAS.
 - [x] **Data Migration:** Restore media and personal data from backup into the new ZFS datasets.
 - [x] **Exports:** Configure NFS/SMB shares for internal network use.
 - [x] **LXC - Plex:** Deploy a Linux Container; mount TrueNAS ZFS datasets via NFS; pass through Intel UHD 630 iGPU.
